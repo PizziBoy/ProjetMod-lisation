@@ -2,6 +2,7 @@ import csv
 from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.impute import KNNImputer
 from scipy.stats.stats import pearsonr
+import pandas as pd
 import numpy as np
 import math
 
@@ -44,7 +45,10 @@ def cos_sim(a, b):
         return dot_product / (norm_a * norm_b)
 
 #J'ouvre le dataSet toy_complet
-f = open("toy_incomplet.csv")
+f = open("toy_complet.csv")
+fPrime = pd.read_csv("toy_complet.csv", sep=' ')
+
+print(fPrime.describe())
 
 toy_complet = csv.reader(f)
 dataSet = []
@@ -52,6 +56,11 @@ dataSet = []
 #Je mets dans la liste dataSet chaque ligne que contient toy_complet
 for line in toy_complet:
   dataSet.append(line)
+
+for column in toy_complet:
+    print(column)
+
+
 
 #Je sélectionne les utilisateurs qui correspondent aux lignes
 utilisateur0 = dataSet[0]
@@ -72,10 +81,11 @@ utilisateur1Float=np.array(utilisateur1,dtype=float)
 utilisateur0 = utilisateur0.reshape(1, -1)
 utilisateur1 = utilisateur1.reshape(1, -1)
 
-imputer = KNNImputer(missing_values = -1, n_neighbors = 1)
-print(imputer.fit_transform(utilisateur0))
+#imputer = KNNImputer(missing_values = -1, n_neighbors = 1)
+#print(imputer.fit_transform(utilisateur0))
 
 
-print(cosine_similarity(utilisateur0, utilisateur1))
-print(pearson(utilisateur0List, utilisateur1List))
-print(utilisateur0.shape[0])
+#print(cosine_similarity(utilisateur0, utilisateur1))
+#print(cos_sim(utilisateur0Float, utilisateur1Float))
+#print(pearson(utilisateur0List, utilisateur1List))
+#print(pearsonr(utilisateur0Float, utilisateur1Float))
