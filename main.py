@@ -46,9 +46,9 @@ def cos_sim(a, b):
 
 #J'ouvre le dataSet toy_complet
 f = open("toy_complet.csv")
-fPrime = pd.read_csv("toy_complet.csv", sep=' ')
+fPrime = pd.read_csv("toy_complet.csv", sep=' ', header = None)
 
-print(fPrime.describe())
+print(df[0])
 
 toy_complet = csv.reader(f)
 dataSet = []
