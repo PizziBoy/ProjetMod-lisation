@@ -47,7 +47,7 @@ def simList(dataSet, utilisateur, nUtilisateurs):
     simListByUser = {}
     simListUser = {}
     for i in range(0, 100):
-        liste = traitementNotesManquantesPourSim(utilisateur, dataSet.loc[i])
+        liste = etLogique(utilisateur, dataSet.loc[i])
         if (cos_sim(liste[0], liste[1]) >= 1):
             simListByUser[i] = -1
         else:
@@ -56,7 +56,7 @@ def simList(dataSet, utilisateur, nUtilisateurs):
 
 
 
-def traitementNotesManquantesPourSim(u0, u1):
+def etLogique(u0, u1):
     liste0 = []
     liste1 = []
     les2Listes = []
@@ -92,8 +92,8 @@ def noteList(simList, item):
 def calculNote(simList, noteList):
         resultPoids = 0
         sommeSim = 0
-        simList = traitementNotesManquantesPourSim(simList, noteList)[0]
-        noteList = traitementNotesManquantesPourSim(simList, noteList)[1]
+        simList = etLogique(simList, noteList)[0]
+        noteList = etLogique(simList, noteList)[1]
         i = 0
         for i in range(0, 4):
             resultPoids += simList[i] * noteList[i]
@@ -102,7 +102,7 @@ def calculNote(simList, noteList):
 
 
 #Prédis les valeurs manquantes d'un utilisateur
-def predict(utilisateur, dataSetJouet):
+def predictUtilisateur(utilisateur, dataSetJouet):
     listeNotesManquantes = rechercheDonnéeManquante(utilisateur)
     listeSimilarite = simList(dataSetJouet, utilisateur, 10)
     for i in listeNotesManquantes:
@@ -117,9 +117,23 @@ def predictAll(dataSetJouet):
         newDf = pd.concat([newDf, tmp.to_frame().T], ignore_index=True)
     return newDf
 
+def diff(dataSet1, dataSet2):
+    newDf = pd.DataFrame()
+    for i in range(1000):
+        newDf[i] = np.where(
+        dataSet1[i] == dataSet2[i], 0, dataSet1[i] - dataSet2[i])
+    return newDf
+
 #J'ouvre le dataSet toy_incomplet
 dataSetJouet = pd.read_csv("toy_incomplet.csv", sep=' ', header = None)
+dataSetJouetComplet = pd.read_csv("toy_complet.csv", sep=' ', header = None)
 #.loc[0] = ligne 0 et [0] = colonne 0
 #print(calculNote([0.72, 0.55, 0.33], [2, 3, 5]))
 #print(simList(dataSetJouet, dataSetJouet.loc[0], 10))
-print(predict(dataSetJouet.loc[0], dataSetJouet))
+print(predictUtilisateur(dataSetJouet.loc[0], dataSetJouet))
+
+from sklearn.impute import KNNImputer
+
+imputer = KNNImputer(n_neighbors=5, missing_values=-1)
+
+print(diff(dataSetJouetComplet,predictUtilisateur(dataSetJouet.loc[0], dataSetJouet) ))
