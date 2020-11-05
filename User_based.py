@@ -42,7 +42,7 @@ def cos_sim(a, b):
         norm_b = np.linalg.norm(b)
         return dot_product / (norm_a * norm_b)
 
-#Retourne une liste des 10 meilleures similarités rapport a un utilisateur donné
+#Retourne un dictionnaire trié dans l'ordre des meilleures similarités entre un utilisateur et le reste du dataSet
 def simList(dataSet, utilisateur, nUtilisateurs):
     simListByUser = {}
     simListUser = {}
@@ -71,6 +71,13 @@ def etLogique(u0, u1):
 
 
 
+def removeDonnéeManquante(utilisateur):
+    list = []
+    for i in range(utilisateur.size):
+        if not(i == -1):
+            list.append(i)
+    return list
+
 #Renvoie les indices des données manquantes d'un utilisateur
 def rechercheDonnéeManquante(utilisateur):
     list = []
@@ -82,23 +89,35 @@ def rechercheDonnéeManquante(utilisateur):
     return list
 
 #Renvoie une liste de toutes les notes utilisateurs d'un même item
-def noteList(simList, item):
+def notesItemList(simList, item):
     list = []
     for i in simList.keys():
         list.append(item[i])
     return list
 
 #Calcule une note en fonction de les similarités et les notes (10 pour 10 premiers utilisateurs)
-def calculNote(simList, noteList):
+def calculNote(simList, notesItemList):
         resultPoids = 0
         sommeSim = 0
-        simList = etLogique(simList, noteList)[0]
-        noteList = etLogique(simList, noteList)[1]
+        simList = etLogique(simList, notesItemList)[0]
+        notesItemList = etLogique(simList, notesItemList)[1]
         i = 0
         for i in range(0, 4):
-            resultPoids += simList[i] * noteList[i]
-            sommeSim += simList[i]
+            resultPoids += simList[i] * notesItemList[i]
+            sommeSim += notesItemList[i]
         return resultPoids/sommeSim
+
+#Calcule une note en fonction de les similarités et les notes (10 pour 10 premiers utilisateurs)
+def calculNoteAvecSeverite(simList, notesItemList, utilisateurConcerné):
+        resultPoids = 0
+        sommeSim = 0
+        simList = etLogique(simList, notesItemList)[0]
+        notesItemList = etLogique(simList, notesItemList)[1]
+        i = 0
+        for i in range(len(notesItemList)):
+            resultPoids += simList[i] * (notesItemList[i] - np.mean(removeDonnéeManquante(utilisateurConcerné)))
+            sommeSim += simList[i]
+        return np.mean(removeDonnéeManquante(utilisateurConcerné)) + resultPoids/sommeSim
 
 
 #Prédis les valeurs manquantes d'un utilisateur
@@ -107,7 +126,7 @@ def predictUtilisateur(utilisateur, dataSetJouet):
     listeSimilarite = simList(dataSetJouet, utilisateur, 10)
     for i in listeNotesManquantes:
         listeNotesCourantes = noteList(listeSimilarite, dataSetJouet[i])
-        utilisateur[i] = calculNote(listeSimilarite, listeNotesCourantes)
+        utilisateur[i] = calculNoteAvecSeverite(listeSimilarite, listeNotesCourantes, utilisateur[i])
     return utilisateur
 
 def predictAll(dataSetJouet):
@@ -136,4 +155,4 @@ from sklearn.impute import KNNImputer
 
 imputer = KNNImputer(n_neighbors=5, missing_values=-1)
 
-print(diff(dataSetJouetComplet,predictUtilisateur(dataSetJouet.loc[0], dataSetJouet) ))
+#print(diff(dataSetJouetComplet,predictUtilisateur(dataSetJouet.loc[0], dataSetJouet) ))
