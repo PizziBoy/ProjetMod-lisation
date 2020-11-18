@@ -4,15 +4,18 @@ from sklearn.metrics.pairwise import cosine_similarity
 import pandas as pd
 import numpy as np
 import math
+from sklearn.impute import KNNImputer
+import plotly.express as px
+import matplotlib.pyplot as plt
 
-
-
+#------------------------------------------------------------------------
+#                             Fonctions outils
+#------------------------------------------------------------------------
 def sommeListe(liste):
     _somme = 0
     for i in liste:
         _somme = _somme + int(i)
     return _somme
-
 
 def average(x):
     assert len(x) > 0
@@ -32,9 +35,7 @@ def pearson(x, y):
         diffprod += xdiff * ydiff
         xdiff2 += xdiff * xdiff
         ydiff2 += ydiff * ydiff
-
     return diffprod / math.sqrt(xdiff2 * ydiff2)
-
 
 def cos_sim(a, b):
         dot_product = np.dot(a, b)
@@ -42,8 +43,22 @@ def cos_sim(a, b):
         norm_b = np.linalg.norm(b)
         return dot_product / (norm_a * norm_b)
 
-#Retourne un dictionnaire trié dans l'ordre des meilleures similarités entre un utilisateur et le reste du dataSet
-def simList(dataSet, utilisateur, nUtilisateurs):
+
+
+
+#------------------------------------------------------------------------
+#                       Fonctions pour la prédiction
+#------------------------------------------------------------------------
+
+
+#J'ouvre les dataSet
+dataSetJouet = pd.read_csv("toy_incomplet.csv", sep=' ', header = None)
+dataSetJouetComplet = pd.read_csv("toy_complet.csv", sep=' ', header = None)
+#.loc[0] = ligne 0 et [0] = colonne 0
+
+
+#Retourne un dictionnaire trié dans l'ordre des meilleures similarités pour un utilisateur donné et le reste du dataSet
+def simList(dataSet, utilisateur):
     simListByUser = {}
     simListUser = {}
     for i in range(0, 100):
@@ -54,8 +69,7 @@ def simList(dataSet, utilisateur, nUtilisateurs):
             simListByUser[i] = cos_sim(liste[0], liste[1])
     return dict(reversed(sorted(simListByUser.items(), key=lambda item: item[1])))
 
-
-
+#Execute un &logique entre les notes de 2 utilisateur afin de retourner uniquement les notes existantes des 2 côtés
 def etLogique(u0, u1):
     liste0 = []
     liste1 = []
@@ -68,9 +82,7 @@ def etLogique(u0, u1):
     les2Listes.append(liste1)
     return les2Listes
 
-
-
-
+#Enleve tous les -1 dans les notes d'un utilisateur (une liste)
 def removeDonnéeManquante(utilisateur):
     list = []
     for i in range(utilisateur.size):
@@ -78,7 +90,7 @@ def removeDonnéeManquante(utilisateur):
             list.append(i)
     return list
 
-#Renvoie les indices des données manquantes d'un utilisateur
+#Renvoie les indices d'où se situent les données manquantes d'un utilisateur
 def rechercheDonnéeManquante(utilisateur):
     list = []
     s = 0
@@ -95,8 +107,9 @@ def notesItemList(simList, item):
         list.append(item[i])
     return list
 
-#Calcule une note en fonction de les similarités et les notes (10 pour 10 premiers utilisateurs)
+#Calcule une note en fonction des similarités et des notes utilisateur (moyenne pondérée de 0 au n ieme meilleur)
 def calculNote(simList, notesItemList):
+        n = 4
         resultPoids = 0
         sommeSim = 0
         simList = etLogique(simList, notesItemList)[0]
@@ -107,52 +120,64 @@ def calculNote(simList, notesItemList):
             sommeSim += notesItemList[i]
         return resultPoids/sommeSim
 
-#Calcule une note en fonction de les similarités et les notes (10 pour 10 premiers utilisateurs)
+#Calcule une note même méthode mais avec prise en compte de la sévérité utilisateur
 def calculNoteAvecSeverite(simList, notesItemList, utilisateurConcerné):
         resultPoids = 0
         sommeSim = 0
         simList = etLogique(simList, notesItemList)[0]
         notesItemList = etLogique(simList, notesItemList)[1]
         i = 0
-        for i in range(len(notesItemList)):
+        for i in range(4):
             resultPoids += simList[i] * (notesItemList[i] - np.mean(removeDonnéeManquante(utilisateurConcerné)))
             sommeSim += simList[i]
         return np.mean(removeDonnéeManquante(utilisateurConcerné)) + resultPoids/sommeSim
 
-
 #Prédis les valeurs manquantes d'un utilisateur
 def predictUtilisateur(utilisateur, dataSetJouet):
     listeNotesManquantes = rechercheDonnéeManquante(utilisateur)
-    listeSimilarite = simList(dataSetJouet, utilisateur, 10)
+    listeSimilarite = simList(dataSetJouet, utilisateur)
     for i in listeNotesManquantes:
-        listeNotesCourantes = noteList(listeSimilarite, dataSetJouet[i])
-        utilisateur[i] = calculNoteAvecSeverite(listeSimilarite, listeNotesCourantes, utilisateur[i])
+        listeNotesCourantes = notesItemList(listeSimilarite, dataSetJouet[i])
+        utilisateur[i] = calculNoteAvecSeverite(listeSimilarite, listeNotesCourantes, utilisateur)
     return utilisateur
 
+
+#Prédis tous le dataSet entier
 def predictAll(dataSetJouet):
     newDf = pd.DataFrame(columns = range(1000))
     for i in range(0, 100):
-        tmp = pd.Series(data = predict(dataSetJouet.loc[i], dataSetJouet))
+        tmp = pd.Series(data = predictUtilisateur(dataSetJouet.loc[i], dataSetJouet))
         newDf = pd.concat([newDf, tmp.to_frame().T], ignore_index=True)
     return newDf
 
+#Retourne un dataSet avec la différence calculée entre 2 mêmes dataSet mais pas les mêmes techniques
 def diff(dataSet1, dataSet2):
     newDf = pd.DataFrame()
     for i in range(1000):
         newDf[i] = np.where(
-        dataSet1[i] == dataSet2[i], 0, dataSet1[i] - dataSet2[i])
+        dataSet1[i] == dataSet2[i], 0, abs(dataSet1[i] - dataSet2[i]))
     return newDf
 
-#J'ouvre le dataSet toy_incomplet
-dataSetJouet = pd.read_csv("toy_incomplet.csv", sep=' ', header = None)
-dataSetJouetComplet = pd.read_csv("toy_complet.csv", sep=' ', header = None)
-#.loc[0] = ligne 0 et [0] = colonne 0
-#print(calculNote([0.72, 0.55, 0.33], [2, 3, 5]))
+
+def fromDataSettoList(df):
+    list = []
+    for i in df:
+        list.append(i)
+    return list;
+
+
+#print(calculNote([0.72 , 0.33], [2, 5]))
 #print(simList(dataSetJouet, dataSetJouet.loc[0], 10))
+#print(predictUtilisateur(dataSetJouet.loc[0], dataSetJouet))
+
+filename = "predict_toy_4meilleurs.csv"
 print(predictUtilisateur(dataSetJouet.loc[0], dataSetJouet))
+print(diff(dataSetJouetComplet, predictAll(dataSetJouet)).mean())
 
-from sklearn.impute import KNNImputer
 
-imputer = KNNImputer(n_neighbors=5, missing_values=-1)
+#imputer = KNNImputer(n_neighbors=5, missing_values=-1)
+#print(imputer.fit_transform(dataSetJouet))
+#plt.plot( range(1000*100), diff(dataSetJouetComplet, predictAll(dataSetJouet)).values.tolist())
+
 
 #print(diff(dataSetJouetComplet,predictUtilisateur(dataSetJouet.loc[0], dataSetJouet) ))
