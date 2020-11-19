@@ -57,17 +57,22 @@ dataSetJouetComplet = pd.read_csv("toy_complet.csv", sep=' ', header = None)
 #.loc[0] = ligne 0 et [0] = colonne 0
 
 
+
 #Retourne un dictionnaire trié dans l'ordre des meilleures similarités pour un utilisateur donné et le reste du dataSet
 def simList(dataSet, utilisateur):
     simListByUser = {}
-    simListUser = {}
+    list = []
     for i in range(0, 100):
         liste = etLogique(utilisateur, dataSet.loc[i])
         if (cos_sim(liste[0], liste[1]) >= 1):
             simListByUser[i] = -1
         else:
             simListByUser[i] = cos_sim(liste[0], liste[1])
-    return dict(reversed(sorted(simListByUser.items(), key=lambda item: item[1])))
+    dic = dict(reversed(sorted(simListByUser.items(), key=lambda item: item[1])))
+    list = [(k, v) for k, v in dic.items()]
+    return list
+
+
 
 #Execute un &logique entre les notes de 2 utilisateur afin de retourner uniquement les notes existantes des 2 côtés
 def etLogique(u0, u1):
@@ -78,17 +83,22 @@ def etLogique(u0, u1):
         if (u0[i] != -1 and u1[i] != -1):
             liste0.append(u0[i])
             liste1.append(u1[i])
+
     les2Listes.append(liste0)
     les2Listes.append(liste1)
     return les2Listes
 
+
+
 #Enleve tous les -1 dans les notes d'un utilisateur (une liste)
 def removeDonnéeManquante(utilisateur):
     list = []
-    for i in range(utilisateur.size):
-        if not(i == -1):
+    for i in utilisateur:
+        if (i != -1):
             list.append(i)
     return list
+
+
 
 #Renvoie les indices d'où se situent les données manquantes d'un utilisateur
 def rechercheDonnéeManquante(utilisateur):
@@ -100,55 +110,59 @@ def rechercheDonnéeManquante(utilisateur):
         s += 1
     return list
 
-#Renvoie une liste de toutes les notes utilisateurs d'un même item
-def notesItemList(simList, item):
-    list = []
-    for i in simList.keys():
-        list.append(item[i])
-    return list
+
 
 #Calcule une note en fonction des similarités et des notes utilisateur (moyenne pondérée de 0 au n ieme meilleur)
-def calculNote(simList, notesItemList):
+def calculNote(simList, notesItem):
         n = 4
         resultPoids = 0
         sommeSim = 0
-        simList = etLogique(simList, notesItemList)[0]
-        notesItemList = etLogique(simList, notesItemList)[1]
         i = 0
-        for i in range(0, 4):
-            resultPoids += simList[i] * notesItemList[i]
-            sommeSim += notesItemList[i]
+        for i in range(0, 15):
+            if (notesItem[simList[i][0]] != -1 and simList[i][1] != -1):
+                resultPoids += simList[i][1] * notesItem[simList[i][0]]
+                sommeSim += simList[i][1]
         return resultPoids/sommeSim
 
+
+
 #Calcule une note même méthode mais avec prise en compte de la sévérité utilisateur
-def calculNoteAvecSeverite(simList, notesItemList, utilisateurConcerné):
+def calculNoteAvecSeverite(simList, notesItem, utilisateurConcerné):
         resultPoids = 0
-        sommeSim = 0
-        simList = etLogique(simList, notesItemList)[0]
-        notesItemList = etLogique(simList, notesItemList)[1]
+        sommeSim = 1
         i = 0
-        for i in range(4):
-            resultPoids += simList[i] * (notesItemList[i] - np.mean(removeDonnéeManquante(utilisateurConcerné)))
-            sommeSim += simList[i]
-        return np.mean(removeDonnéeManquante(utilisateurConcerné)) + resultPoids/sommeSim
+        avgU = average(removeDonnéeManquante(utilisateurConcerné));
+        for i in range(15):
+            if (notesItem[simList[i][0]] != -1 and simList[i][1] != -1):
+                resultPoids += simList[i][1] * (notesItem[simList[i][0]] - avgU)
+                sommeSim += simList[i][1]
+        return avgU + resultPoids/sommeSim
+
+
 
 #Prédis les valeurs manquantes d'un utilisateur
-def predictUtilisateur(utilisateur, dataSetJouet):
+def predictUtilisateur(utilisateur, dataSetJouet, severite):
     listeNotesManquantes = rechercheDonnéeManquante(utilisateur)
     listeSimilarite = simList(dataSetJouet, utilisateur)
     for i in listeNotesManquantes:
-        listeNotesCourantes = notesItemList(listeSimilarite, dataSetJouet[i])
-        utilisateur[i] = calculNoteAvecSeverite(listeSimilarite, listeNotesCourantes, utilisateur)
+        listeNotesCourantes = dataSetJouet[i]
+        if (severite):
+            utilisateur[i] = calculNoteAvecSeverite(listeSimilarite, listeNotesCourantes, utilisateur)
+        else:
+            utilisateur[i] = calculNote(listeSimilarite, listeNotesCourantes)
     return utilisateur
 
 
+
 #Prédis tous le dataSet entier
-def predictAll(dataSetJouet):
+def predictAll(dataSetJouet, severite):
     newDf = pd.DataFrame(columns = range(1000))
     for i in range(0, 100):
-        tmp = pd.Series(data = predictUtilisateur(dataSetJouet.loc[i], dataSetJouet))
+        tmp = pd.Series(data = predictUtilisateur(dataSetJouet.loc[i], dataSetJouet, severite))
         newDf = pd.concat([newDf, tmp.to_frame().T], ignore_index=True)
     return newDf
+
+
 
 #Retourne un dataSet avec la différence calculée entre 2 mêmes dataSet mais pas les mêmes techniques
 def diff(dataSet1, dataSet2):
@@ -159,20 +173,15 @@ def diff(dataSet1, dataSet2):
     return newDf
 
 
-def fromDataSettoList(df):
-    list = []
-    for i in df:
-        list.append(i)
-    return list;
-
 
 #print(calculNote([0.72 , 0.33], [2, 5]))
 #print(simList(dataSetJouet, dataSetJouet.loc[0], 10))
-#print(predictUtilisateur(dataSetJouet.loc[0], dataSetJouet))
+
+print(predictAll(dataSetJouet, False))
 
 filename = "predict_toy_4meilleurs.csv"
-print(predictUtilisateur(dataSetJouet.loc[0], dataSetJouet))
-print(diff(dataSetJouetComplet, predictAll(dataSetJouet)).mean())
+dict = simList(dataSetJouet, dataSetJouet.loc[0])
+#print(type(dict[0][0]))
 
 
 #imputer = KNNImputer(n_neighbors=5, missing_values=-1)
