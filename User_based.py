@@ -9,7 +9,7 @@ import plotly.express as px
 import matplotlib.pyplot as plt
 
 #------------------------------------------------------------------------
-#                             Fonctions outils
+#                             Fonctions outils ;)
 #------------------------------------------------------------------------
 def sommeListe(liste):
     _somme = 0
